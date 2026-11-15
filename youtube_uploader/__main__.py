@@ -154,14 +154,14 @@ def cmd_upload(args) -> int:
         print("Dry run: nothing uploaded.")
         return 0
 
-    from .auth import load_credentials, whoami, youtube_service
+    from .auth import load_or_login, whoami, youtube_service
     from .uploader import insert_caption, set_thumbnail, upload_video
 
     failed = 0
     for it, ch, body in plan:
         print(f"[{it.key}] uploading...")
         try:
-            service = youtube_service(load_credentials(ch.token_path))
+            service = youtube_service(load_or_login(cfg.client_secret, ch.token_path, it.key))
             me = whoami(service)
             if ch.channel_id and me["id"] != ch.channel_id:
                 raise RuntimeError(

@@ -98,6 +98,8 @@ python -m youtube_uploader upload jobs/paper_origin --only en,ja
   3개 채널 × 1편(≈5,000)은 충분하지만 하루 2편이 넘으면 한도 증설 신청이 필요합니다.
 - **미검증 API 프로젝트**: Google 감사(audit)를 받지 않은 프로젝트로 올린 영상은 **비공개로 고정**됩니다.
   감사 전까지는 `private`로 올리고 YouTube Studio에서 공개로 바꾸거나, YouTube API 감사를 신청하세요.
+- **앱이 '테스트 중' 상태면** 로그인이 7일마다 만료됩니다. `upload` 중 만료된 채널이 있으면 브라우저가 자동으로 열리니
+  해당 채널을 다시 선택하면 그대로 이어서 업로드됩니다.
 - **커스텀 썸네일**은 전화번호 인증된 채널에서만 됩니다(실패해도 영상 업로드는 유지됩니다).
 - **AI 생성 콘텐츠 표시**: 사실처럼 보이는 AI 영상이면 `contains_synthetic_media: true`로 설정하세요.
 - `channels.json`, `secrets/`, `tokens/`, `jobs/`는 `.gitignore`에 들어 있어 커밋되지 않습니다.

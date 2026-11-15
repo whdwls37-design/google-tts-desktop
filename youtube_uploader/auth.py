@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -44,6 +45,16 @@ def load_credentials(token_path: Path) -> Credentials:
                 f"Token at {token_path} is invalid. Re-run: python -m youtube_uploader auth <channel>"
             )
     return creds
+
+
+def load_or_login(client_secret: Path, token_path: Path, label: str, log=print) -> Credentials:
+    """Like load_credentials, but opens the browser login when the token is
+    missing or expired (apps in 'Testing' status get 7-day refresh tokens)."""
+    try:
+        return load_credentials(token_path)
+    except (FileNotFoundError, RuntimeError, RefreshError) as e:
+        log(f"[{label}] login needed ({type(e).__name__}). Browser will open: choose the '{label}' channel.")
+        return login(client_secret, token_path)
 
 
 def youtube_service(creds: Credentials):
