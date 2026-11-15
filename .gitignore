@@ -2,3 +2,9 @@ __pycache__/
 *.pyc
 .venv/
 output/
+
+# YouTube uploader: credentials and per-user data
+channels.json
+secrets/
+tokens/
+jobs/

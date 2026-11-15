@@ -1,0 +1,41 @@
+{
+  "client_secret": "secrets/client_secret.json",
+  "channels": {
+    "ko": {
+      "name": "한국 채널",
+      "channel_id": "",
+      "token": "tokens/ko.json",
+      "language": "ko",
+      "privacy": "private",
+      "category_id": "27",
+      "tags": [],
+      "description_footer": "",
+      "made_for_kids": false,
+      "contains_synthetic_media": false
+    },
+    "en": {
+      "name": "English channel",
+      "channel_id": "",
+      "token": "tokens/en.json",
+      "language": "en",
+      "privacy": "private",
+      "category_id": "27",
+      "tags": [],
+      "description_footer": "",
+      "made_for_kids": false,
+      "contains_synthetic_media": false
+    },
+    "ja": {
+      "name": "日本チャンネル",
+      "channel_id": "",
+      "token": "tokens/ja.json",
+      "language": "ja",
+      "privacy": "private",
+      "category_id": "27",
+      "tags": [],
+      "description_footer": "",
+      "made_for_kids": false,
+      "contains_synthetic_media": false
+    }
+  }
+}
