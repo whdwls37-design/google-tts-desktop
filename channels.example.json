@@ -36,6 +36,18 @@
       "description_footer": "",
       "made_for_kids": false,
       "contains_synthetic_media": false
+    },
+    "es": {
+      "name": "Canal en español",
+      "channel_id": "",
+      "token": "tokens/es.json",
+      "language": "es",
+      "privacy": "private",
+      "category_id": "27",
+      "tags": [],
+      "description_footer": "",
+      "made_for_kids": false,
+      "contains_synthetic_media": false
     }
   }
 }

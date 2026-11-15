@@ -38,7 +38,7 @@ Google Cloud TTS is a paid service. This app does not provide free speech conver
 
 # YouTube 다국어 일괄 업로더 (`youtube_uploader`)
 
-롱폼 영상 1편을 언어별 버전(ko / en / ja …)으로 나눠 **언어마다 정해진 채널**에 한 번에 업로드하는 CLI 도구입니다.
+롱폼 영상 1편을 언어별 버전(ko / en / ja / es …)으로 나눠 **언어마다 정해진 채널**에 한 번에 업로드하는 CLI 도구입니다.
 대본(`script.txt`)으로 제목·설명·태그를 만들고, 썸네일과 자막(.srt)도 함께 올립니다.
 
 ## 1. 최초 설정 (한 번만)
