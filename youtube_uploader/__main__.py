@@ -21,6 +21,15 @@ def _cfg(args) -> AppConfig:
     return load_config(args.config)
 
 
+def remember_channel_id(cfg: AppConfig, key: str, me: dict) -> None:
+    """Pin the channel in channels.json so later uploads refuse a wrong login."""
+    data = json.loads(cfg.path.read_text(encoding="utf-8-sig"))
+    data["channels"][key]["channel_id"] = me["id"]
+    cfg.path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    cfg.channels[key].channel_id = me["id"]
+    print(f"[{key}] saved channel '{me['title']}' ({me['id']}) to {cfg.path.name}")
+
+
 def cmd_auth(args) -> int:
     from .auth import login, whoami, youtube_service
 
@@ -38,7 +47,7 @@ def cmd_auth(args) -> int:
         if ch.channel_id and ch.channel_id != me["id"]:
             print(f"[{key}] WARNING: channels.json expects {ch.channel_id}. Re-run and pick the right channel.")
         elif not ch.channel_id:
-            print(f'[{key}] Tip: add "channel_id": "{me["id"]}" to channels.json so uploads are verified.')
+            remember_channel_id(cfg, key, me)
     return 0
 
 
@@ -172,6 +181,9 @@ def cmd_upload(args) -> int:
                     f"token belongs to '{me['title']}' ({me['id']}), expected {ch.channel_id}. "
                     f"Re-run: python -m youtube_uploader auth {it.key}"
                 )
+            if not ch.channel_id:
+                remember_channel_id(cfg, it.key, me)
+            print(f"[{it.key}] channel: {me['title']}")
             video_id = upload_video(service, it.video, body)
             url = f"https://youtu.be/{video_id}"
             result = {
