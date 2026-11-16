@@ -43,7 +43,7 @@ class Meta:
 
     @classmethod
     def from_file(cls, path: Path) -> "Meta":
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
         known = {k: data[k] for k in cls.__dataclass_fields__ if k in data}
         if "title" not in known or "description" not in known:
             raise ValueError(f"{path}: 'title' and 'description' are required")
@@ -71,7 +71,7 @@ class LangItem:
         return self.folder / RESULT_FILE
 
     def read_script(self) -> str:
-        return self.script.read_text(encoding="utf-8") if self.script else ""
+        return self.script.read_text(encoding="utf-8-sig") if self.script else ""
 
 
 def _find_video(folder: Path) -> Optional[Path]:
@@ -89,6 +89,20 @@ def _first(folder: Path, names) -> Optional[Path]:
     return None
 
 
+def _find_script(folder: Path) -> Optional[Path]:
+    """script.txt / script.md, else 'script.txt.txt' (Windows hidden extension),
+    else the only .txt/.md file in the folder."""
+    exact = _first(folder, SCRIPT_NAMES)
+    if exact:
+        return exact
+    texts = sorted(p for p in folder.iterdir()
+                   if p.is_file() and p.suffix.lower() in (".txt", ".md"))
+    named = [p for p in texts if p.name.lower().startswith("script")]
+    if named:
+        return named[0]
+    return texts[0] if len(texts) == 1 else None
+
+
 def scan_job(job_dir: Path) -> List[LangItem]:
     if not job_dir.is_dir():
         raise FileNotFoundError(f"Job folder not found: {job_dir}")
@@ -99,7 +113,7 @@ def scan_job(job_dir: Path) -> List[LangItem]:
                 key=sub.name,
                 folder=sub,
                 video=_find_video(sub),
-                script=_first(sub, SCRIPT_NAMES),
+                script=_find_script(sub),
                 thumbnail=_first(sub, THUMB_NAMES),
                 captions=sorted(p for p in sub.iterdir() if p.suffix.lower() in CAPTION_EXTS),
             )

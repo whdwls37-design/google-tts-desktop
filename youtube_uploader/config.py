@@ -40,7 +40,7 @@ def load_config(path: str) -> AppConfig:
             f"Config not found: {cfg_path}\n"
             "Copy channels.example.json to channels.json and fill it in."
         )
-    data = json.loads(cfg_path.read_text(encoding="utf-8"))
+    data = json.loads(cfg_path.read_text(encoding="utf-8-sig"))
     base = cfg_path.parent
 
     channels: Dict[str, ChannelConfig] = {}

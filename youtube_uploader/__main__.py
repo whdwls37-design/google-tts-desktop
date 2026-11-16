@@ -75,7 +75,8 @@ def cmd_prepare(args) -> int:
             continue
         script = it.read_script()
         if not script.strip():
-            print(f"[{it.key}] no script.txt; write {META_FILE} by hand")
+            files = ", ".join(p.name for p in sorted(it.folder.iterdir())) or "(empty)"
+            print(f"[{it.key}] no script.txt found. Files in {it.folder}: {files}")
             continue
         if args.ai:
             from .ai_meta import generate_meta
@@ -104,7 +105,7 @@ def cmd_upload(args) -> int:
     for it in items:
         ch = cfg.channels[it.key]
         if it.result_path.exists() and not args.force:
-            done = json.loads(it.result_path.read_text(encoding="utf-8"))
+            done = json.loads(it.result_path.read_text(encoding="utf-8-sig"))
             print(f"[{it.key}] already uploaded: {done.get('url')} (use --force to upload again)")
             continue
         if not it.video:
