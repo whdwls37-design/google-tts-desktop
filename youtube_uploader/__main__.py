@@ -227,6 +227,44 @@ def cmd_upload(args) -> int:
     return 1 if failed else 0
 
 
+def cmd_thumbnail(args) -> int:
+    """Set thumbnails on videos this tool already uploaded (upload_result.json)."""
+    from .auth import load_or_login, whoami, youtube_service
+    from .uploader import set_thumbnail
+
+    cfg = _cfg(args)
+    items = _selected(scan_job(Path(args.job)), cfg, args.only)
+    failed = done = 0
+    for it in items:
+        ch = cfg.channels[it.key]
+        if not it.result_path.exists():
+            print(f"[{it.key}] skipped: not uploaded yet (no {it.result_path.name})")
+            continue
+        if not it.thumbnail:
+            print(f"[{it.key}] skipped: no image in {it.folder}")
+            continue
+        result = json.loads(it.result_path.read_text(encoding="utf-8-sig"))
+        try:
+            service = youtube_service(load_or_login(cfg.client_secret, ch.token_path, it.key))
+            me = whoami(service)
+            if ch.channel_id and me["id"] != ch.channel_id:
+                raise RuntimeError(f"logged in as '{me['title']}', expected {ch.channel_id}")
+            set_thumbnail(service, result["video_id"], it.thumbnail)
+            result["thumbnail"] = it.thumbnail.name
+            it.result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n",
+                                      encoding="utf-8")
+            print(f"[{it.key}] thumbnail set: {it.thumbnail.name} -> {result['url']}")
+            done += 1
+        except Exception as e:
+            failed += 1
+            print(f"[{it.key}] thumbnail FAILED: {e}")
+    print(f"Done: {done} set, {failed} failed.")
+    if failed:
+        print("If it says the channel can't use custom thumbnails, verify the channel's phone number "
+              "at https://www.youtube.com/verify")
+    return 1 if failed else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="youtube_uploader",
                                 description="Upload one video to per-language YouTube channels.")
@@ -257,6 +295,11 @@ def build_parser() -> argparse.ArgumentParser:
     u.add_argument("--privacy", choices=["private", "unlisted", "public"])
     u.add_argument("--force", action="store_true", help="upload even if upload_result.json exists")
     u.set_defaults(func=cmd_upload)
+
+    t = sub.add_parser("thumbnail", help="set thumbnails on videos already uploaded")
+    t.add_argument("job")
+    t.add_argument("--only", help="comma-separated channel keys, e.g. en,ja")
+    t.set_defaults(func=cmd_thumbnail)
     return p
 
 

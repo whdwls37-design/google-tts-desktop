@@ -1,5 +1,7 @@
 google-api-python-client>=2.100.0
 google-auth-oauthlib>=1.2.0
 google-auth-httplib2>=0.2.0
+# Shrinks thumbnails over YouTube's 2 MB limit
+pillow>=10.0.0
 # Only needed for `prepare --ai`
 anthropic>=2.0.0

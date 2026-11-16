@@ -125,6 +125,7 @@ python -m youtube_uploader upload jobs/paper_origin --only en,ja
   감사 전까지는 `private`로 올리고 YouTube Studio에서 공개로 바꾸거나, YouTube API 감사를 신청하세요.
 - **앱이 '테스트 중' 상태면** 로그인이 7일마다 만료됩니다. `upload` 중 만료된 채널이 있으면 브라우저가 자동으로 열리니
   해당 채널을 다시 선택하면 그대로 이어서 업로드됩니다.
-- **커스텀 썸네일**은 전화번호 인증된 채널에서만 됩니다(실패해도 영상 업로드는 유지됩니다).
+- **썸네일**: 언어 폴더에 이미지 1장(jpg/png, 이름 자유)을 넣으면 업로드 때 같이 올라갑니다. 2MB가 넘으면 자동으로 줄입니다.
+  이미 올린 영상에는 `python -m youtube_uploader thumbnail jobs/영상이름` 으로 붙입니다. 채널 전화번호 인증이 필요합니다.
 - **AI 생성 콘텐츠 표시**: 사실처럼 보이는 AI 영상이면 `contains_synthetic_media: true`로 설정하세요.
 - `channels.json`, `secrets/`, `tokens/`, `jobs/`는 `.gitignore`에 들어 있어 커밋되지 않습니다.

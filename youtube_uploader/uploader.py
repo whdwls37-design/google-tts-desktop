@@ -54,8 +54,35 @@ def _retry_or_raise(attempt: int, err: Exception, log) -> int:
     return attempt
 
 
+THUMB_MAX_BYTES = 2 * 1024 * 1024  # YouTube limit
+THUMB_OK_TYPES = (".jpg", ".jpeg", ".png")
+
+
+def prepare_thumbnail(thumbnail: Path) -> Path:
+    """Return a file YouTube accepts: JPG/PNG under 2 MB. Larger or other
+    formats are converted to a 1280x720-max JPEG next to the original."""
+    if thumbnail.suffix.lower() in THUMB_OK_TYPES and thumbnail.stat().st_size <= THUMB_MAX_BYTES:
+        return thumbnail
+    try:
+        from PIL import Image
+    except ImportError:
+        raise RuntimeError(
+            f"{thumbnail.name} is over 2 MB or not JPG/PNG. Run 'pip install pillow' "
+            "so it can be shrunk automatically, or save it as a smaller JPG."
+        )
+    out = thumbnail.with_name(thumbnail.stem + ".upload.jpg")
+    img = Image.open(thumbnail).convert("RGB")
+    img.thumbnail((1280, 720))
+    for quality in (92, 85, 75, 65, 50):
+        img.save(out, "JPEG", quality=quality, optimize=True)
+        if out.stat().st_size <= THUMB_MAX_BYTES:
+            return out
+    raise RuntimeError(f"Could not shrink {thumbnail.name} under 2 MB")
+
+
 def set_thumbnail(service, video_id: str, thumbnail: Path) -> None:
-    service.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(str(thumbnail))).execute()
+    path = prepare_thumbnail(thumbnail)
+    service.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(str(path))).execute()
 
 
 def insert_caption(service, video_id: str, caption: Path, language: str, name: str = "") -> None:

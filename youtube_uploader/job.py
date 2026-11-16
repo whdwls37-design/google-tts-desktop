@@ -19,6 +19,7 @@ from .config import ChannelConfig
 
 VIDEO_EXTS = (".mp4", ".mov", ".mkv", ".webm", ".avi")
 THUMB_NAMES = ("thumbnail.jpg", "thumbnail.jpeg", "thumbnail.png")
+IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".bmp")
 SCRIPT_NAMES = ("script.txt", "script.md")
 CAPTION_EXTS = (".srt", ".vtt", ".sbv")
 
@@ -106,6 +107,19 @@ def _first(folder: Path, names) -> Optional[Path]:
     return None
 
 
+def _find_thumbnail(folder: Path) -> Optional[Path]:
+    """thumbnail.jpg/png, else the only image file in the folder (any name)."""
+    exact = _first(folder, THUMB_NAMES)
+    if exact:
+        return exact
+    images = sorted(p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_EXTS
+                    and not p.name.endswith(".upload.jpg"))  # our own shrunk copy
+    named = [p for p in images if p.stem.lower().startswith(("thumb", "썸네일"))]
+    if named:
+        return named[0]
+    return images[0] if len(images) == 1 else None
+
+
 def _find_script(folder: Path) -> Optional[Path]:
     """script.txt / script.md, else 'script.txt.txt' (Windows hidden extension),
     else the only .txt/.md file in the folder."""
@@ -132,7 +146,7 @@ def scan_job(job_dir: Path) -> List[LangItem]:
                 folder=sub,
                 video=_find_video(sub),
                 script=_find_script(sub),
-                thumbnail=_first(sub, THUMB_NAMES),
+                thumbnail=_find_thumbnail(sub),
                 captions=sorted(p for p in sub.iterdir() if p.suffix.lower() in CAPTION_EXTS),
             )
         )
