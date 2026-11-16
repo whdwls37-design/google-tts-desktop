@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .config import AppConfig, load_config
-from .job import META_FILE, Meta, fallback_meta, finalize, scan_job
+from .job import INFO_FILE, INFO_TEMPLATE, META_FILE, Meta, fallback_meta, finalize, parse_info, parse_schedule, scan_job
 from .uploader import QUOTA
 
 
@@ -55,9 +55,14 @@ def cmd_init(args) -> int:
     cfg = _cfg(args)
     job = Path(args.job)
     for key in cfg.channels:
-        (job / key).mkdir(parents=True, exist_ok=True)
+        folder = job / key
+        folder.mkdir(parents=True, exist_ok=True)
+        info = folder / INFO_FILE
+        if not info.exists():
+            info.write_text(INFO_TEMPLATE, encoding="utf-8-sig")
     print(f"Created {job}/{{{','.join(cfg.channels)}}}/")
-    print("Put in each folder: video.mp4, script.txt, optional thumbnail.jpg and captions .srt")
+    print(f"In each folder: put the video, then open {INFO_FILE} and fill in 제목 / 예약 / 설명.")
+    print("Optional: thumbnail.jpg, captions .srt")
     return 0
 
 
@@ -121,15 +126,16 @@ def cmd_upload(args) -> int:
             print(f"[{it.key}] already uploaded: {done.get('url')} (use --force to upload again)")
             continue
         if not it.video:
-            problems.append(f"[{it.key}] no video file in {it.folder}")
+            print(f"[{it.key}] skipped: no video file in {it.folder}")
             continue
-        if not it.meta_path.exists():
-            problems.append(f"[{it.key}] no {META_FILE}; run 'prepare' first")
+        has_info = it.info_path.exists() and it.info_path.read_bytes().strip()
+        if not has_info and not it.meta_path.exists():
+            problems.append(f"[{it.key}] no {INFO_FILE} (제목/예약/설명) in {it.folder}")
             continue
         try:
-            meta = Meta.from_file(it.meta_path)
+            meta = parse_info(it.info_path) if has_info else Meta.from_file(it.meta_path)
             if args.publish_at:
-                meta.publish_at = args.publish_at
+                meta.publish_at = parse_schedule(args.publish_at)
             if args.privacy:
                 meta.privacy = args.privacy
             body = finalize(meta, ch)
@@ -155,7 +161,10 @@ def cmd_upload(args) -> int:
         cost += QUOTA["thumbnails.set"] if it.thumbnail else 0
         cost += QUOTA["captions.insert"] * len(it.captions)
         quota += cost
-        when = f" at {st['publishAt']}" if "publishAt" in st else ""
+        when = ""
+        if "publishAt" in st:
+            local = datetime.fromisoformat(st["publishAt"]).astimezone()
+            when = f", scheduled {local:%Y-%m-%d %H:%M} (this PC's time)"
         print(f"[{it.key}] -> {ch.name or ch.key}: {it.video.name} ({size_mb:.0f} MB)")
         print(f"     title: {sn['title']}")
         print(f"     {st['privacyStatus']}{when}, tags: {len(sn['tags'])}, "
@@ -244,7 +253,7 @@ def build_parser() -> argparse.ArgumentParser:
     u.add_argument("job")
     u.add_argument("--only", help="comma-separated channel keys, e.g. en,ja")
     u.add_argument("--dry-run", action="store_true", help="validate and show the plan only")
-    u.add_argument("--publish-at", help="schedule, ISO 8601 with timezone (2026-11-20T18:00:00+09:00)")
+    u.add_argument("--publish-at", help="schedule for every channel, e.g. '2026-11-20 18:00' (local time) or '2026-11-20 18:00 -05:00'")
     u.add_argument("--privacy", choices=["private", "unlisted", "public"])
     u.add_argument("--force", action="store_true", help="upload even if upload_result.json exists")
     u.set_defaults(func=cmd_upload)

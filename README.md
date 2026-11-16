@@ -60,7 +60,32 @@ python -m youtube_uploader auth ja
 `auth`가 출력하는 `channel_id`를 `channels.json`에 넣어 두면, 업로드 전에 토큰의 채널이 맞는지 확인하고
 다르면 업로드를 중단합니다(다른 나라 채널에 잘못 올라가는 것을 막습니다).
 
-## 2. 영상마다
+## 2. 영상마다 (가장 간단한 방법: 영상 + info.txt)
+
+```bash
+python -m youtube_uploader init jobs/paper_origin
+```
+
+언어 폴더마다 `info.txt`가 생깁니다. 영상을 넣고 `info.txt`를 메모장으로 열어 채운 뒤 바로 업로드합니다.
+
+```
+제목: The Shocking Origin of Paper
+예약: 2026-11-20 18:00
+태그: paper, history
+설명:
+여기부터 끝까지가 설명입니다.
+여러 줄 가능.
+```
+
+- 예약 시간은 이 컴퓨터 시간 기준입니다. 다른 시간대는 `2026-11-20 18:00 -05:00`처럼 적습니다. 비우면 예약 없이 올라갑니다.
+- 영상이 없는 언어 폴더는 건너뜁니다.
+
+```bash
+python -m youtube_uploader upload jobs/paper_origin --dry-run
+python -m youtube_uploader upload jobs/paper_origin
+```
+
+## 2-1. 대본으로 제목·설명을 자동 생성하는 방법 (선택)
 
 ```bash
 python -m youtube_uploader init jobs/paper_origin

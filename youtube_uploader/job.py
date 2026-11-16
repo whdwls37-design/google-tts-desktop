@@ -1,7 +1,8 @@
 """A job is one video in several languages:
 
     jobs/<slug>/
-      ko/  video.mp4  script.txt  [meta.json] [thumbnail.jpg] [*.srt]
+      ko/  video.mp4  info.txt  [thumbnail.jpg] [*.srt]
+           (or script.txt + meta.json made by `prepare`)
       en/  ...
       ja/  ...
 
@@ -22,6 +23,7 @@ SCRIPT_NAMES = ("script.txt", "script.md")
 CAPTION_EXTS = (".srt", ".vtt", ".sbv")
 
 META_FILE = "meta.json"
+INFO_FILE = "info.txt"
 RESULT_FILE = "upload_result.json"
 
 TITLE_MAX = 100
@@ -70,16 +72,23 @@ class LangItem:
     def result_path(self) -> Path:
         return self.folder / RESULT_FILE
 
+    @property
+    def info_path(self) -> Path:
+        return self.folder / INFO_FILE
+
     def read_script(self) -> str:
-        if not self.script:
-            return ""
-        raw = self.script.read_bytes()
-        if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
-            return raw.decode("utf-16")
-        try:
-            return raw.decode("utf-8-sig")
-        except UnicodeDecodeError:
-            return raw.decode("cp949", errors="replace")  # Korean Windows "ANSI"
+        return read_text_any(self.script) if self.script else ""
+
+
+def read_text_any(path: Path) -> str:
+    """Notepad may save UTF-8 (with/without BOM), UTF-16, or Korean ANSI (CP949)."""
+    raw = path.read_bytes()
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return raw.decode("utf-16")
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return raw.decode("cp949", errors="replace")
 
 
 def _find_video(folder: Path) -> Optional[Path]:
@@ -104,7 +113,8 @@ def _find_script(folder: Path) -> Optional[Path]:
     if exact:
         return exact
     texts = sorted(p for p in folder.iterdir()
-                   if p.is_file() and p.suffix.lower() in (".txt", ".md"))
+                   if p.is_file() and p.suffix.lower() in (".txt", ".md")
+                   and not p.name.lower().startswith("info"))
     named = [p for p in texts if p.name.lower().startswith("script")]
     if named:
         return named[0]
@@ -214,3 +224,101 @@ def finalize(meta: Meta, channel: ChannelConfig) -> dict:
         },
         "status": status,
     }
+
+
+# ---------------------------------------------------------------- info.txt
+
+INFO_TEMPLATE = """# 이 파일에 제목, 예약 시간, 설명을 적고 저장하세요. ('#'으로 시작하는 줄은 무시됩니다)
+# 예약: 비워 두면 예약 없이 올라갑니다. 형식 2026-11-20 18:00 (이 컴퓨터 시간 기준)
+#       다른 시간대로 쓰려면 끝에 +09:00 처럼 붙이세요. 예) 2026-11-20 18:00 -05:00
+# 태그: 쉼표로 구분 (선택)
+# 공개: 비공개 / 일부공개 / 공개 (선택, 예약을 쓰면 무시됨)
+# 설명: 은 맨 마지막에 두고, 그 아래 줄부터 끝까지가 설명입니다.
+
+제목:
+예약:
+태그:
+설명:
+"""
+
+_KEYS = {
+    "제목": "title", "title": "title",
+    "예약": "schedule", "schedule": "schedule", "publish_at": "schedule",
+    "태그": "tags", "tags": "tags",
+    "공개": "privacy", "privacy": "privacy",
+    "설명": "description", "description": "description",
+}
+_PRIVACY = {"비공개": "private", "일부공개": "unlisted", "일부 공개": "unlisted",
+            "공개": "public", "private": "private", "unlisted": "unlisted", "public": "public"}
+_DATE_FORMATS = ("%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M", "%Y.%m.%d %H:%M", "%Y/%m/%d %H:%M",
+                 "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S")
+
+
+def parse_schedule(value: str) -> str:
+    """'2026-11-20 18:00' (this computer's timezone), optionally followed by an
+    offset like '+09:00' / '-05:00', or full ISO 8601 -> ISO 8601 with timezone."""
+    value = " ".join(value.split())
+    base, offset = value, ""
+    head, _, tail = value.rpartition(" ")
+    if head and tail[:1] in "+-" and ":" in tail:
+        base, offset = head, tail
+    when = None
+    for fmt in _DATE_FORMATS:
+        try:
+            when = datetime.strptime(base, fmt)
+            break
+        except ValueError:
+            continue
+    if when is None:
+        try:
+            when = datetime.fromisoformat(value)  # e.g. 2026-11-20T18:00:00+09:00
+            offset = ""
+        except ValueError:
+            raise ValueError(f"예약 '{value}' 형식을 모르겠어요. 예) 2026-11-20 18:00")
+    if offset:
+        when = datetime.fromisoformat(when.strftime("%Y-%m-%dT%H:%M:%S") + offset)
+    if when.tzinfo is None:
+        when = when.astimezone()  # this computer's local timezone
+    return when.isoformat()
+
+
+def parse_info(path: Path) -> Meta:
+    fields = {"title": "", "schedule": "", "tags": "", "privacy": ""}
+    description: List[str] = []
+    in_description = False
+    for line in read_text_any(path).splitlines():
+        if in_description:
+            description.append(line)
+            continue
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        key, sep, value = stripped.partition(":")
+        name = _KEYS.get(key.strip().lower()) if sep else None
+        if name == "description":
+            in_description = True
+            if value.strip():
+                description.append(value.strip())
+        elif name:
+            fields[name] = value.strip()
+
+    title = fields["title"]
+    desc = "\n".join(description).strip()
+    if not title:
+        raise ValueError(f"{path.name}: '제목:' 이 비어 있어요")
+    if not desc:
+        raise ValueError(f"{path.name}: '설명:' 아래에 설명을 적어 주세요")
+    privacy = None
+    if fields["privacy"]:
+        privacy = _PRIVACY.get(fields["privacy"].replace(" ", "").lower()) or _PRIVACY.get(fields["privacy"])
+        if not privacy:
+            raise ValueError(f"{path.name}: 공개는 비공개 / 일부공개 / 공개 중 하나로 적어 주세요")
+    tags = [t.strip() for t in fields["tags"].replace("#", "").split(",") if t.strip()]
+    return Meta(
+        title=title,
+        description=desc,
+        tags=tags,
+        privacy=privacy,
+        publish_at=parse_schedule(fields["schedule"]) if fields["schedule"] else None,
+    )
+
