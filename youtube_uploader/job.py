@@ -71,7 +71,15 @@ class LangItem:
         return self.folder / RESULT_FILE
 
     def read_script(self) -> str:
-        return self.script.read_text(encoding="utf-8-sig") if self.script else ""
+        if not self.script:
+            return ""
+        raw = self.script.read_bytes()
+        if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+            return raw.decode("utf-16")
+        try:
+            return raw.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            return raw.decode("cp949", errors="replace")  # Korean Windows "ANSI"
 
 
 def _find_video(folder: Path) -> Optional[Path]:

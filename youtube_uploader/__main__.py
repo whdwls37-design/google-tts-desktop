@@ -74,6 +74,9 @@ def cmd_prepare(args) -> int:
             print(f"[{it.key}] {META_FILE} exists, keeping it (use --force to regenerate)")
             continue
         script = it.read_script()
+        if it.script and not script.strip():
+            print(f"[{it.key}] {it.script.name} is empty. Open it, paste the script, save (Ctrl+S).")
+            continue
         if not script.strip():
             files = ", ".join(p.name for p in sorted(it.folder.iterdir())) or "(empty)"
             print(f"[{it.key}] no script.txt found. Files in {it.folder}: {files}")
